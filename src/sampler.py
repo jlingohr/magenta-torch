@@ -64,7 +64,10 @@ class Sampler:
         """
         model.eval()
         with torch.no_grad():
-            song = song.unsqueeze(1)
+            song = song.transpose(0, 1)
+            batch_size = song.size(1)
+            song.view(model.max_sequence_length, batch_size, model.decoder.input_size)
+            song.to(device)
             sample = model.reconstruct(song)
             return sample
     

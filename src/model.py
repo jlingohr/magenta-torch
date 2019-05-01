@@ -65,14 +65,15 @@ class MusicLSTMVAE(nn.Module):
         out = self.decoder(x, z, h_dec, c_dec, use_teacher_forcing)
         return out, mu, sigma, z
     
-    def reconstruct(self, song):
-        h_enc, c_enc = self.encoder.init_hidden(1)
+    def reconstruct(self, x):
+        batch_size = x.size(1)
+        h_enc, c_enc = self.encoder.init_hidden(batch_size)
         mu, sigma = self.encoder(x, h_enc, c_enc)
         with torch.no_grad():
             epsilon = torch.randn_like(mu, device=device)
         z = self.z_embedding(mu + sigma*epsilon)
-        h_dec, c_dec = self.decoder.init_hidden(1)
-        out = self.decoder.reconstruct(x, z, h_dec, c_dec)
+        h_dec, c_dec = self.decoder.init_hidden(batch_size)
+        out = self.decoder.reconstruct(z, h_dec, c_dec)
         return out
 
 class MusicGRUVAE(nn.Module):
@@ -134,12 +135,13 @@ class MusicGRUVAE(nn.Module):
         out = self.decoder(x, z, h_dec, use_teacher_forcing)
         return out, mu, sigma, z
     
-    def reconstruct(self, song):
-        h_enc = self.encoder.init_hidden(1)
+    def reconstruct(self, x):
+        batch_size = x.size(1)
+        h_enc = self.encoder.init_hidden(batch_size)
         mu, sigma = self.encoder(x, h_enc)
         with torch.no_grad():
             epsilon = torch.randn_like(mu, device=device)
         z = self.z_embedding(mu + sigma*epsilon)
-        h_dec = self.decoder.init_hidden(1)
-        out = self.decoder.reconstruct(x, z, h_dec)
+        h_dec = self.decoder.init_hidden(batch_size)
+        out = self.decoder.reconstruct(z, h_dec)
         return out

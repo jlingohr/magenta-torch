@@ -2,7 +2,7 @@ import numpy as np
 import math
 
 class Transform:
-    def __init__(self, bars=1, events=4, note_count=60):
+    def __init__(self, bars=1, events=4, note_count=61):
         self.split_size = bars*events
         self.note_count = note_count
         
@@ -20,4 +20,4 @@ class Transform:
             padding_size = self.split_size - leftover
             padding = np.zeros((padding_size, sample.shape[1], sample.shape[2]), dtype=float)
             sample = np.concatenate((sample, padding), axis=0)
-        return sample
+        return sample.reshape(-1, self.note_count)

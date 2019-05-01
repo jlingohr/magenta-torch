@@ -9,7 +9,7 @@ class BiLSTMEncoder(nn.Module):
     """
     Bi-directional LSTM encoder from MusicVAE
     Inputs:
-    - input_size:
+    - input_size: Dimension of one-hot representation of input notes
     - hidden_size: hidden size of bidirectional lstm
     - num_layers: Number of layers for bidirectional lstm
     """
@@ -121,7 +121,7 @@ class HierarchicalLSTMDecoder(nn.Module):
         one_hot = torch.eye(self.input_size).to(device)
         batch_size = 1
         out = torch.zeros(self.max_seq_length, batch_size, self.input_size, dtype=torch.float, device=device)
-        prev_note = torch.zeros(1, batch_size, self.input_size, dtype=torch.flator, device=device)
+        prev_note = torch.zeros(1, batch_size, self.input_size, dtype=torch.float, device=device)
         for embedding_idx in range(self.num_embeddings):
             embedding, (h0, c0) = self.conductor(latent.unsqueeze(0), (h0, c0))
             embedding = self.conductor_embeddings(embedding)
@@ -255,20 +255,20 @@ class HierarchicalGRUDecoder(nn.Module):
         Reconstruct the actual midi using categorical distribution
         """
         one_hot = torch.eye(self.input_size).to(device)
-        batch_size = 1
+        batch_size = h0.size(1)
         out = torch.zeros(self.max_seq_length, batch_size, self.input_size, dtype=torch.float, device=device)
-        prev_note = torch.zeros(1, batch_size, self.input_size, dtype=torch.flator, device=device)
+        prev_note = torch.zeros(1, batch_size, self.input_size, dtype=torch.float, device=device)
         for embedding_idx in range(self.num_embeddings):
             embedding, h0 = self.conductor(latent.unsqueeze(0), h0)
             embedding = self.conductor_embeddings(embedding)
             h0_dec = torch.randn(self.num_layers, batch_size, self.hidden_size, dtype=torch.float, device=device)
             for note_idx in range(self.seq_length):
                 e = torch.cat((prev_note, embedding), -1)
-                prev_note, h0_dec = self.lstm(e, h0_dec)
+                prev_note, h0_dec = self.gru(e, h0_dec)
                 prev_note = self.out(prev_note)
                 prev_note = Categorical(prev_note / temperature).sample()
-                prev_note = self.one_hot(prev_note)
-                out[idx, :, :] = prev_note.squeeze()
+                prev_note = one_hot[prev_note]
+                out[note_idx, :, :] = prev_note.squeeze()
         return out
 
     def init_hidden(self, batch_size=1):

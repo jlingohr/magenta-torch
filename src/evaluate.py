@@ -16,16 +16,19 @@ from src.reconstruction import MidiBuilder
 
 # General settings
 parser = argparse.ArgumentParser()
-parser.add_argument('--data', default='data/test.pickle')
+parser.add_argument('--data', default='X_test.pickle')
 parser.add_argument('--model_type', type=str, default='lstm')
 parser.add_argument('--mode', type=str, default=None, choices=['eval', 'interpolate', 'reconstruct'])
 parser.add_argument('--song_id_a', type=str, default=None)
 parser.add_argument('--song_id_b', type=str, default=None)
-parser.add_argument('--song_names', type=str, default=None)
+parser.add_argument('--song_names', type=str, default='data/test_paths.pickle')
 parser.add_argument('--temp_path', type=str, default=None)
 parser.add_argument('--reconstruction_path', type=str, default='midi_reconstruction')
 parser.add_argument('--model_path', type=str)
-parser.add_argument('--midi_path', type=str, default=None)
+
+# Data settings
+parser.add_argument('--data_dir', type=str, default='data')
+parser.add_argument('--tempo_file', type=str, default='data/T_test.pickle')
 
 # Model parameters
 parser.add_argument('--num_subsequences', type=int, default=16)
@@ -57,9 +60,10 @@ def load_model(model_type, params):
     return model
 
 
-def load_data(test_data, batch_size, song_names=None, midi_path=None):
+def load_data(test_data, batch_size, song_paths=None):
     X_test = pickle.load(open(test_data, 'rb'))
-    test_data = MidiDataset(X_test, Transform(1), song_names=song_names, midi_path=midi_path)
+    song_names = [os.path.basename(x) for x in pickle.load(open(song_paths, 'rb'))]
+    test_data = MidiDataset(X_test, Transform(1), song_paths=song_names)
     test_loader = DataLoader(test_data, batch_size=batch_size)
     return test_loader
 
@@ -69,6 +73,32 @@ def load_tempo(tempo_path, song_id):
     else:
         tempos = pickle.load(open(tempo_path, 'rb'))
         return tempos[song_id]
+    
+def evaluate(sampler, model, args):
+    data_path = os.path.join(args.data_dir, args.data)
+    data = load_data(data_path, args.batch_size, args.song_names)
+    loss_tf, loss = sampler.evaluate(model, data)
+    print("Loss with teacher forcing: %.4f, loss without teacher forcing: %.4f" % (loss_tf, loss))
+    
+def reconstruct(sampler, model, args):
+    data_path = os.path.join(args.data_dir, args.data)
+    builder = MidiBuilder()
+    song_id = args.song_id_a
+    data = load_data(data_path, args.batch_size, args.song_names)
+    song = data.dataset.get_tensor_by_name(song_id)
+    reconstructed = sampler.reconstruct(model, song)
+    tempos = pickle.load(open(args.tempo_file, 'rb'))
+    tempo = data.dataset.song_to_idx[song_id]
+    midi = builder.midi_from_piano_roll(reconstructed, tempo)
+    reconstruction_dir = args.reconstruction_path
+    if not os.path.exists(reconstruction_dir):
+        os.makedirs(reconstruction_dir)
+    path = os.path.join(reconstruction_dir, song_id)
+    midi.write(path)
+    print('Saved reconstruction for %s' % song_id)
+    
+def interpolate():
+    raise ValueError("Not implemented")
 
 def main(args):
     model_params = {
@@ -91,40 +121,24 @@ def main(args):
         'batch_size': args.batch_size,
         'output_dir': args.output_dir
     }
-
     sampler = Sampler(**sampler_params)
-    checkpoint = torch.load(args.model_path, map_location='cpu')
-    model.load_state_dict(checkpoint.state_dict(), strict=False)
+    
+    model.load_state_dict(torch.load(args.model_path, map_location='cpu').state_dict(), strict=False)
+    print(model)
     model.eval()
-    
-    if args.song_names is not None:
-        song_names = [os.path.basename(x) for x in pickle.load(open(args.song_names, 'rb'))]
-    
+            
     mode = args.mode
     if mode == 'eval':
-        data = load_data(args.data, args.batch_size, args.midi_path)
-        loss_tf, loss = sampler.evaluate(model, data)
-        print("Loss with teacher forcing: %.4f, loss without teacher forcing: %.4f" % (loss_tf, loss))
+        evaluate(sampler, model, args)
     elif mode == 'reconstruct':
-        builder = MidiBuilder()
-        song_id = os.path.basename(args.song_id_a)
-        data = load_data(args.data, args.batch_size, song_names)
-        song = data.dataset.get_song_by_name(song_id)
-        reconstructed = sampler.reconstruct(model, song)
-        tempo = get_tempo_song(song_id)
-        midi = builder.midi_from_piano_roll(reconstructed, temp)
-        reconstruction_dir = args.reconstruction_path
-        if not os.path.exists(reconstruction_dir):
-            os.makedirs(reconstruction_dir)
-        path = os.path.join(reconstruction_dir, song_id)
-        midi.write(path)
-        print('Saved reconstruction for %s' % song_id)
+        reconstruct(sampler, model, args)
+        
 #     elif mode == 'interpolate':
 #         song_id_A = args.song_id_a
 #         song_id_B = args.song_id_b
-#         data = load_data(args.data, args.batch_size)
-#         song_a = data.get_song_by_name(song_id_a)
-#         song_b = data.get_song_by_name(song_id_b)
+#         data = load_data(data_path, args.batch_size)
+#         song_a = data.get_tensor_by_name(song_id_a)
+#         song_b = data.get_tensor_by_name(song_id_b)
 #         interpolated = sampler.interpolate(model, song_a, song_b)
 #         # TODO save interpolated
     
