@@ -86,15 +86,18 @@ def reconstruct(sampler, model, args):
     song_id = args.song_id_a
     data = load_data(data_path, args.batch_size, args.song_names)
     song = data.dataset.get_tensor_by_name(song_id)
+    # Generate reconstruction from the samples
     reconstructed = sampler.reconstruct(model, song)
+    # Get tempo
     tempos = pickle.load(open(args.tempo_file, 'rb'))
     tempo = data.dataset.song_to_idx[song_id]
-    midi = builder.midi_from_piano_roll(reconstructed, tempo)
+    # Reconstruct into midi form
+    midi = builder.midi_from_piano_roll(reconstructed) #TODO should include tempo
     reconstruction_dir = args.reconstruction_path
     if not os.path.exists(reconstruction_dir):
         os.makedirs(reconstruction_dir)
     path = os.path.join(reconstruction_dir, song_id)
-    midi.write(path)
+    midi.write(path + ".mid")
     print('Saved reconstruction for %s' % song_id)
     
 def interpolate():

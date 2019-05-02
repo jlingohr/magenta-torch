@@ -69,6 +69,10 @@ class Sampler:
             song.view(model.max_sequence_length, batch_size, model.decoder.input_size)
             song.to(device)
             sample = model.reconstruct(song)
+            # Samples are currently (seq_len, batch_size, num_notes) where 
+            # batch_size is the number of segments of 16 bars. These belong to the 
+            # same song so we want to return the concatenation of the entire song
+            sample = sample.view(-1, model.input_size)
             return sample
     
 #     def interpolate(self, model, song_A, song_B, num_steps,

@@ -7,7 +7,7 @@ import librosa.display as display
 class MidiBuilder():
     """Build a MIDI from a piano roll sample"""
 
-    def __init__(self, midi_start=48, midi_end=108):
+    def __init__(self, midi_start=24, midi_end=85): #TODO should be 84
         """
         Args:
             midi_start (int): The first midi note in the dataset
@@ -67,3 +67,7 @@ class MidiBuilder():
         fs = 44100
         synth = midi_sample.synthesize(fs=fs)
         return [synth], fs
+    
+def decode_song(enc):
+    piano_midi = pretty_midi.PrettyMIDI()
+    

@@ -31,6 +31,7 @@ class MusicLSTMVAE(nn.Module):
                  encoder_num_layers=2, 
                  decoder_num_layers=2):
         super(MusicLSTMVAE, self).__init__()
+        self.input_size = decoder_input_size
         self.encoder = BiLSTMEncoder(encoder_input_size, 
                                      encoder_hidden_size, 
                                      latent_dim, 
@@ -100,6 +101,7 @@ class MusicGRUVAE(nn.Module):
                  encoder_num_layers=2, 
                  decoder_num_layers=2):
         super(MusicGRUVAE, self).__init__()
+        self.input_size = decoder_input_size
         self.max_sequence_length = max_sequence_length
         self.encoder = BiGRUEncoder(encoder_input_size, 
                                      encoder_hidden_size, 
