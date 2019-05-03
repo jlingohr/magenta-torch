@@ -58,7 +58,7 @@ class Sampler:
                 print('idx: %d, loss_tf: %.4f, loss: %.4f' % (idx, batch_loss_tf, batch_loss))
         return loss_acc_tf / len(data), loss_acc / len(data)   
     
-    def reconstruct(self, model, song):
+    def reconstruct(self, model, song, temperature):
         """
         Reconstruct song
         """
@@ -68,7 +68,7 @@ class Sampler:
             batch_size = song.size(1)
             song.view(model.max_sequence_length, batch_size, model.decoder.input_size)
             song.to(device)
-            sample = model.reconstruct(song)
+            sample = model.reconstruct(song, temperature)
             # Samples are currently (seq_len, batch_size, num_notes) where 
             # batch_size is the number of segments of 16 bars. These belong to the 
             # same song so we want to return the concatenation of the entire song

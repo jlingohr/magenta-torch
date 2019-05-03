@@ -53,6 +53,9 @@ parser.add_argument('--sampling_rate', type=int, default=2000)
 parser.add_argument('--batch_size', type=int, default=1)
 parser.add_argument('--output_dir', type=str, default='outputs')
 
+# Generator parameters
+parser.add_argument('--temperature', type=float, default=1.0)
+
 
 def load_model(model_type, params):
     if model_type == 'lstm':
@@ -119,7 +122,7 @@ def reconstruct(sampler, model, args):
     data = load_data(data_path, args.batch_size, args.song_names, args.instrument_file, args.tempo_file)
     song = data.dataset.get_tensor_by_name(song_id)
     # Generate reconstruction from the samples
-    reconstructed = sampler.reconstruct(model, song)
+    reconstructed = sampler.reconstruct(model, song, args.temperature)
     # Reconstruct into midi form
     I, tempo = data.dataset.get_aux_by_names(song_id)
     programs = instrument_representation_to_programs(I, args.attach_method)

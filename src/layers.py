@@ -114,7 +114,7 @@ class HierarchicalLSTMDecoder(nn.Module):
                     out[idx, :, :] = prev_note.squeeze()
         return out
     
-    def reconstruct(self, latent, h0, c0, temperature=1.0):
+    def reconstruct(self, latent, h0, c0, temperature):
         """
         Reconstruct the actual midi using categorical distribution
         """
@@ -250,7 +250,7 @@ class HierarchicalGRUDecoder(nn.Module):
                     out[idx, :, :] = prev_note.squeeze()
         return out
     
-    def reconstruct(self, latent, h0, temperature=1.0):
+    def reconstruct(self, latent, h0, temperature):
         """
         Reconstruct the actual midi using categorical distribution
         """
