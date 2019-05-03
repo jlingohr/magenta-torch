@@ -386,7 +386,7 @@ dmypy.json
 .pyre/
 
 
-data
+/data
 
 .DS_Store
 outputs
