@@ -11,8 +11,8 @@ from src.model import *
 from src.sampler import *
 from src.dataset import MidiDataset
 from src.transform import Transform
-
 from src.reconstruction import MidiBuilder
+from src.midi_functions import rolls_to_midi
 
 # General settings
 parser = argparse.ArgumentParser()
@@ -24,11 +24,15 @@ parser.add_argument('--song_id_b', type=str, default=None)
 parser.add_argument('--song_names', type=str, default='data/test_paths.pickle')
 parser.add_argument('--temp_path', type=str, default=None)
 parser.add_argument('--reconstruction_path', type=str, default='midi_reconstruction')
-parser.add_argument('--model_path', type=str)
+parser.add_argument('--model_path', type=str, default='data/I_test.pickle')
 
 # Data settings
 parser.add_argument('--data_dir', type=str, default='data')
 parser.add_argument('--tempo_file', type=str, default='data/T_test.pickle')
+parser.add_argument('--instrument_file', type=str, default='data/I_test.pickle')
+parser.add_argument('--attach_method', type=str, default='1hot-category', choices=[
+    '1hot-category', 'khot-category', '1hot-instrument', 'khot-instrument'
+])
 
 # Model parameters
 parser.add_argument('--num_subsequences', type=int, default=16)
@@ -60,10 +64,15 @@ def load_model(model_type, params):
     return model
 
 
-def load_data(test_data, batch_size, song_paths=None):
+def load_data(test_data, batch_size, song_paths=None, instrument_path=None, tempo_path=None):
     X_test = pickle.load(open(test_data, 'rb'))
-    song_names = [os.path.basename(x) for x in pickle.load(open(song_paths, 'rb'))]
-    test_data = MidiDataset(X_test, Transform(1), song_paths=song_names)
+    if song_paths is not None:
+        song_names = [os.path.basename(x) for x in pickle.load(open(song_paths, 'rb'))]
+    if instrument_path is not None:
+        instruments = pickle.load(open(instrument_path, 'rb'))
+    if tempo_path is not None:
+        tempos = pickle.load(open(tempo_path, 'rb'))
+    test_data = MidiDataset(X_test, Transform(1), song_paths=song_names, instruments=instruments, tempos=tempos)
     test_loader = DataLoader(test_data, batch_size=batch_size)
     return test_loader
 
@@ -80,24 +89,51 @@ def evaluate(sampler, model, args):
     loss_tf, loss = sampler.evaluate(model, data)
     print("Loss with teacher forcing: %.4f, loss without teacher forcing: %.4f" % (loss_tf, loss))
     
+def instrument_representation_to_programs(I, instrument_attach_method='1hot-category'):
+    programs = []
+    for instrument_vector in I:
+        if instrument_attach_method == '1hot-category':
+            index = np.argmax(instrument_vector)
+            programs.append(index * 8)
+        elif instrument_attach_method == 'khot-category':
+            nz = np.nonzero(instrument_vector)[0]
+            index = 0
+            for exponent in nz:
+                index += 2^exponent
+            programs.append(index * 8)
+        elif instrument_attach_method == '1hot-instrument':
+            index = np.argmax(instrument_vector)
+            programs.append(index)
+        elif instrument_attach_method == 'khot-instrument':
+            nz = np.nonzero(instrument_vector)[0]
+            index = 0
+            for exponent in nz:
+                index += 2^exponent
+            programs.append(index)
+    return programs
+    
 def reconstruct(sampler, model, args):
     data_path = os.path.join(args.data_dir, args.data)
     builder = MidiBuilder()
     song_id = args.song_id_a
-    data = load_data(data_path, args.batch_size, args.song_names)
+    data = load_data(data_path, args.batch_size, args.song_names, args.instrument_file, args.tempo_file)
     song = data.dataset.get_tensor_by_name(song_id)
     # Generate reconstruction from the samples
     reconstructed = sampler.reconstruct(model, song)
-    # Get tempo
-    tempos = pickle.load(open(args.tempo_file, 'rb'))
-    tempo = data.dataset.song_to_idx[song_id]
     # Reconstruct into midi form
-    midi = builder.midi_from_piano_roll(reconstructed) #TODO should include tempo
-    reconstruction_dir = args.reconstruction_path
-    if not os.path.exists(reconstruction_dir):
-        os.makedirs(reconstruction_dir)
-    path = os.path.join(reconstruction_dir, song_id)
-    midi.write(path + ".mid")
+    I, tempo = data.dataset.get_aux_by_names(song_id)
+    programs = instrument_representation_to_programs(I, args.attach_method)
+    
+    rolls_to_midi(reconstructed, 
+                  programs, 
+                  args.reconstruction_path, 
+                  song_id, 
+                  tempo, 
+                  24,
+                  84,
+                  128,
+                  0.5)
+    
     print('Saved reconstruction for %s' % song_id)
     
 def interpolate():

@@ -66,7 +66,7 @@ def rolls_to_midi(pianoroll,
                   max_velocity=127):
 
     #bpm is in quarter notes, so scale accordingly
-    bpm = bpm * (smallest_note / 4)
+#     bpm = bpm * (smallest_note / 4)
 
     pianoroll = np.pad(np.copy(pianoroll), ((0,0),(low_crop,num_notes-high_crop)), mode='constant', constant_values=0)
 
@@ -143,4 +143,4 @@ def rolls_to_midi(pianoroll,
                     velocities[note] = int(current_velocity_roll[i])
 
         midi.instruments.append(current_instrument)
-    midi.write(save_folder + filename+'.mid')
+    midi.write(os.path.join(save_folder,filename+'.mid'))

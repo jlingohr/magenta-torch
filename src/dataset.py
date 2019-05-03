@@ -18,13 +18,15 @@ class MidiDataset(Dataset):
     - song_name_to_idx: Dictionary mapping song name to idx in song_names and midi paths
     - index_mapper: List of tuple (song_idx, bar_idx) for each song
     """
-    def __init__(self, input_tensor, transform, song_paths=None):
+    def __init__(self, input_tensor, transform, song_paths=None, instruments=None, tempos=None):
         self.song_tensor = [x.astype(float) for x in input_tensor]
         self.midi_paths = song_paths
         self.transform = transform
         self.song_names = [os.path.basename(x).split('.')[0] for x in song_paths]
         self.index_mapper, self.song_to_bar_idx = self._initialize()
         self.song_to_idx = {v:k for (k,v) in enumerate(self.song_names)}
+        self.instruments=instruments
+        self.tempos = tempos
     
     def _initialize(self):
         index_mapper = []
@@ -68,3 +70,12 @@ class MidiDataset(Dataset):
                   for (song_idx, section_idx) in indices] 
         samples = torch.tensor(samples, dtype=torch.float)
         return samples 
+    
+    def get_aux_by_names(self, song_name):
+        """
+        Return aux information such as instruments and tempo
+        """
+        idx = self.song_to_idx[song_name]
+        if self.instruments is not None:
+            return self.instruments[idx], self.tempos[idx]
+        return None
