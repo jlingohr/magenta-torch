@@ -1,2 +1,2 @@
 # magenta-torch
-Pytorch Implementation of MusicVAE
+Pytorch Implementation of MusicVAE with LSTM and GRU architectures
