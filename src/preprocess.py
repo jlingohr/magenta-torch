@@ -1,5 +1,5 @@
 import pretty_midi as pretty_midi
-import src.data.midi_functions as mf
+import src.midi_functions as mf
 import os
 import sys
 import numpy as np
@@ -428,9 +428,8 @@ class MidiPreprocessor:
         
     def import_midi_from_folder(self, 
                                 folder, 
-                                save_imported_midi_as_pickle=True, 
-                                save_preprocessed_midi=True, 
-                                test_fraction=0.1):
+                                save_imported_midi_as_pickle, 
+                                save_preprocessed_midi):
         X_list = []
         Y_list = []
         paths = []
@@ -531,6 +530,9 @@ class MidiPreprocessor:
         test_set_size = len(X_test)  
 
         if save_imported_midi_as_pickle:
+            if not os.path.exists(self.pickle_store_folder):
+                os.makedirs(self.pickle_store_folder)
+                
             pickle.dump(V_train,open(self.pickle_store_folder+'/V_train.pickle', 'wb'))
             pickle.dump(V_test,open(self.pickle_store_folder+'/V_test.pickle', 'wb'))
 

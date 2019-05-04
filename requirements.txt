@@ -4,3 +4,4 @@ torch
 pandas
 matplotlib
 librosa
+PyYAML
