@@ -17,8 +17,8 @@ preprocessor:
     velocity_threshold: 0.5
     instrument_attach_method: '1hot-category'
     attach_instruments: False
-    input_length: 16
-    output_length: 16
+    input_length: &T 256 # Number of beats. We want to split songs into 16 bars of 16th notes
+    output_length: *T
     test_fraction: 0.1
     
 trainer:
@@ -26,15 +26,19 @@ trainer:
     KL_rate: 0.9999
     free_bits: 256
     sampling_rate: 2000
-    batch_size: 64
-    print_every: 1000
+    batch_size: &batchsize 2
+    print_every: 1
     checkpoint_every: 10000
     checkpoint_dir: 'checkpoint'
     output_dir: 'outputs'
-
+    
+sampler:
+    free_bits: 256
+    output_dir: 'outputs'
+    
 model:
     num_subsequences: 16
-    max_sequence_length: 256
+    max_sequence_length: *T
     sequence_length: 16
     encoder_input_size: 61
     decoder_input_size: 61
@@ -43,7 +47,29 @@ model:
     latent_dim: 512
     encoder_num_layers: 2
     decoder_num_layers: 2
+
+data: # Specify paths to data
+    train_data: 'pickles/X_train_1.pickle'
+    val_data: ''
+    train_instrument_data: ''
+    val_instrument_data: ''
+    train_tempo_data: ''
+    val_tempo_data: ''
+    train_song_paths: ''
+    val_song_paths: ''
+
+evaluation:
+    model_path: 'outputs/checkpoints/gru_small/model.pt'
+    test_data: 'pickles/X_train_1.pickle'
+    test_instruments: 'pickles/I_train_1.pickle'
+    test_songs: 'pickles/train_paths_1.pickle'
+    test_tempos: 'pickles/T_train_1.pickle'
+    batch_size: *batchsize
+    temperature: 1.0
+    reconstruction:
+        attach_method: '1hot-category'
+        song_name: '98_Degrees_-_The_Hardest_Thing'
+        reconstruction_path: 'midi_reconstruction'
+        
     
-data:
-    train_data: 'pickles/X_train.pickle'
-    val_data: None
+

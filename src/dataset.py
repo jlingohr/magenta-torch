@@ -9,7 +9,6 @@ class MidiDataset(Dataset):
     """
     Inputs:
     - song_tensor: input pitches of shape (num_samples, input_length, different_pitches)
-    - Transform
     - song_paths: list of paths to input midi files
     
     Attributes:
@@ -18,10 +17,9 @@ class MidiDataset(Dataset):
     - song_name_to_idx: Dictionary mapping song name to idx in song_names and midi paths
     - index_mapper: List of tuple (song_idx, bar_idx) for each song
     """
-    def __init__(self, input_tensor, transform, song_paths=None, instruments=None, tempos=None):
+    def __init__(self, input_tensor, song_paths=None, instruments=None, tempos=None):
         self.song_tensor = [x.astype(float) for x in input_tensor]
         self.midi_paths = song_paths
-        self.transform = transform
         self.song_names = None
         if song_paths is not None:
             self.song_names = [os.path.basename(x).split('.')[0] for x in song_paths]
@@ -37,8 +35,7 @@ class MidiDataset(Dataset):
         
         for song_idx in range(len(self.song_tensor)):
             song_tuples = []
-            
-            split_count = self.transform.get_sections(self.song_tensor[song_idx].shape[0])
+            split_count = self.song_tensor[song_idx].shape[0] 
             for bar_idx in range(0, split_count):
                 song_tuples.append((song_idx, bar_idx))
                 index_mapper.append((song_idx, bar_idx))
@@ -46,7 +43,6 @@ class MidiDataset(Dataset):
             if self.song_names is not None:
                 song_name = self.song_names[song_idx]
                 song_to_idx[song_name] = song_tuples
-                
         return index_mapper, song_to_idx
         
     def __len__(self):
@@ -60,7 +56,7 @@ class MidiDataset(Dataset):
         song_idx, section_idx = self.index_mapper[idx]
         
         sample = self.song_tensor[song_idx]
-        sample = self.transform(sample, section_idx)
+        sample = sample[section_idx,:,:] 
         x = torch.tensor(sample, dtype=torch.float)
         return x.to(device) 
     
@@ -68,9 +64,10 @@ class MidiDataset(Dataset):
         """
         Return tensor for specified song partitioned by bars
         """
-        indices = self.song_to_bar_idx[song_name]
-        samples = [self.transform(self.song_tensor[song_idx], section_idx)
-                  for (song_idx, section_idx) in indices] 
+        song_idx = self.song_to_idx[song_name]
+#         song_idx, bar_idx = self.song_to_bar_idx[song_name]
+#         print(bar_idx)
+        samples = self.song_tensor[song_idx]
         samples = torch.tensor(samples, dtype=torch.float)
         return samples 
     

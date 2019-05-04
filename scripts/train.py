@@ -11,7 +11,6 @@ from torch.utils.data import DataLoader
 from src.model import *
 from src.trainer import *
 from src.dataset import MidiDataset
-from src.transform import Transform
 
 # General settings
 parser = argparse.ArgumentParser()
@@ -34,13 +33,13 @@ def load_model(model_type, params):
 def load_data(train_data, val_data, batch_size, validation_split=0.2, random_seed=874):
     train_loader = None
     val_loader = None
-    if train_data != 'None':
+    if train_data != '':
         X_train = pickle.load(open(train_data, 'rb'))
-        train_data = MidiDataset(X_train, Transform(1))
+        train_data = MidiDataset(X_train)
         train_loader = DataLoader(train_data, batch_size=batch_size)
-    if val_data != 'None':
+    if val_data != '':
         X_val = pickle.load(open(val_data, 'rb'))
-        val_data = MidiDataset(X_val, Transform(1))
+        val_data = MidiDataset(X_val)
         val_loader = DataLoader(val_data, batch_size=batch_size)
     
     return train_loader, val_loader

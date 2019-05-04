@@ -220,7 +220,8 @@ class HierarchicalGRUDecoder(nn.Module):
         # Initialie start note
         prev_note = torch.zeros(1, batch_size, self.input_size, dtype=torch.float, device=device)
 
-        # Conductor produces an embedding vector for each subsequence
+        # Conductor produces an embedding vector for each subsequence, where each
+        # subsequence consists of a bar of 16th notes
         for embedding_idx in range(self.num_embeddings):
             embedding, h0 = self.conductor(latent.unsqueeze(0), h0)
             embedding = self.conductor_embeddings(embedding)

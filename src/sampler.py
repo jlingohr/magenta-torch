@@ -21,12 +21,8 @@ def spherical_interpolation(p0, p1, t):
 class Sampler:
     def __init__(self,
                  free_bits=256,
-                 sampling_rate=2000,
-                 batch_size=512, 
                  output_dir='samples'):
         self.free_bits = free_bits
-        self.sampling_rate = sampling_rate
-        self.batch_size = batch_size
         self.output_dir = output_dir
         
     def reconstruction_loss(self, model, batch):

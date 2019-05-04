@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 import sys
+import yaml
 
 sys.path.append(".")
 
@@ -10,51 +11,13 @@ from torch.utils.data import DataLoader
 from src.model import *
 from src.sampler import *
 from src.dataset import MidiDataset
-from src.transform import Transform
-from src.reconstruction import MidiBuilder
 from src.midi_functions import rolls_to_midi
 
 # General settings
 parser = argparse.ArgumentParser()
-parser.add_argument('--data', default='X_test.pickle')
+parser.add_argument('--config', type=str, default='conf.yml')
 parser.add_argument('--model_type', type=str, default='lstm')
-parser.add_argument('--mode', type=str, default=None, choices=['eval', 'interpolate', 'reconstruct'])
-parser.add_argument('--song_id_a', type=str, default=None)
-parser.add_argument('--song_id_b', type=str, default=None)
-parser.add_argument('--song_names', type=str, default='data/test_paths.pickle')
-parser.add_argument('--temp_path', type=str, default=None)
-parser.add_argument('--reconstruction_path', type=str, default='midi_reconstruction')
-parser.add_argument('--model_path', type=str, default='data/I_test.pickle')
-
-# Data settings
-parser.add_argument('--data_dir', type=str, default='data')
-parser.add_argument('--tempo_file', type=str, default='data/T_test.pickle')
-parser.add_argument('--instrument_file', type=str, default='data/I_test.pickle')
-parser.add_argument('--attach_method', type=str, default='1hot-category', choices=[
-    '1hot-category', 'khot-category', '1hot-instrument', 'khot-instrument'
-])
-
-# Model parameters
-parser.add_argument('--num_subsequences', type=int, default=16)
-parser.add_argument('--max_sequence_length', type=int, default=256)
-parser.add_argument('--sequence_length', type=int, default=16)
-parser.add_argument('--encoder_input_size', type=int, default=61)
-parser.add_argument('--decoder_input_size', type=int, default=61)
-parser.add_argument('--encoder_hidden_size', type=int, default=2048)
-parser.add_argument('--decoder_hidden_size', type=int, default=1024)
-parser.add_argument('--latent_dim', type=int, default=512)
-parser.add_argument('--encoder_num_layers', type=int, default=2)
-parser.add_argument('--decoder_num_layers', type=int, default=2)
-
-# Trainer parameters
-parser.add_argument('--KL_rate', type=float, default=0.9999)
-parser.add_argument('--free_bits', type=int, default=256)
-parser.add_argument('--sampling_rate', type=int, default=2000)
-parser.add_argument('--batch_size', type=int, default=1)
-parser.add_argument('--output_dir', type=str, default='outputs')
-
-# Generator parameters
-parser.add_argument('--temperature', type=float, default=1.0)
+parser.add_argument('--mode', type=str, choices=['eval', 'interpolate', 'reconstruct'])
 
 
 def load_model(model_type, params):
@@ -66,16 +29,22 @@ def load_model(model_type, params):
         raise Exception("Invalid model type. Expected lstm or gru")
     return model
 
-
-def load_data(test_data, batch_size, song_paths=None, instrument_path=None, tempo_path=None):
+def load_data(test_data, batch_size, song_paths='', instrument_path='', tempo_path=''):
     X_test = pickle.load(open(test_data, 'rb'))
-    if song_paths is not None:
+    
+    song_names = None
+    if song_paths != '':
         song_names = [os.path.basename(x) for x in pickle.load(open(song_paths, 'rb'))]
-    if instrument_path is not None:
+    
+    instruments = None
+    if instrument_path != '':
         instruments = pickle.load(open(instrument_path, 'rb'))
-    if tempo_path is not None:
+    
+    tempos = None
+    if tempo_path != '':
         tempos = pickle.load(open(tempo_path, 'rb'))
-    test_data = MidiDataset(X_test, Transform(1), song_paths=song_names, instruments=instruments, tempos=tempos)
+    
+    test_data = MidiDataset(X_test, song_paths=song_names, instruments=instruments, tempos=tempos)
     test_loader = DataLoader(test_data, batch_size=batch_size)
     return test_loader
 
@@ -87,8 +56,10 @@ def load_tempo(tempo_path, song_id):
         return tempos[song_id]
     
 def evaluate(sampler, model, args):
-    data_path = os.path.join(args.data_dir, args.data)
-    data = load_data(data_path, args.batch_size, args.song_names)
+    data_path = args['test_data']
+    song_names = args['test_songs']
+    batch_size = args['batch_size']
+    data = load_data(test_data=data_path, batch_size=batch_size, instrument_path='', song_paths=song_names)
     loss_tf, loss = sampler.evaluate(model, data)
     print("Loss with teacher forcing: %.4f, loss without teacher forcing: %.4f" % (loss_tf, loss))
     
@@ -115,21 +86,31 @@ def instrument_representation_to_programs(I, instrument_attach_method='1hot-cate
             programs.append(index)
     return programs
     
-def reconstruct(sampler, model, args):
-    data_path = os.path.join(args.data_dir, args.data)
-    builder = MidiBuilder()
-    song_id = args.song_id_a
-    data = load_data(data_path, args.batch_size, args.song_names, args.instrument_file, args.tempo_file)
+def reconstruct(sampler, model, evaluation_params):
+    # Load data
+    data_path = evaluation_params['test_data']
+    song_names = evaluation_params['test_songs']
+    tempos = evaluation_params['test_tempos']
+    instruments = evaluation_params['test_instruments']
+    batch_size = evaluation_params['batch_size']
+    data = load_data(data_path, batch_size, song_names, instruments, tempos)
+    
+    # Reconstruct specified song
+    reconstruction_params = evaluation_params['reconstruction']
+    song_id = reconstruction_params['song_name']
+    temperature = evaluation_params['temperature']
+    attach_method = reconstruction_params['attach_method']
+    reconstruction_path = reconstruction_params['reconstruction_path']
     song = data.dataset.get_tensor_by_name(song_id)
     # Generate reconstruction from the samples
-    reconstructed = sampler.reconstruct(model, song, args.temperature)
+    reconstructed = sampler.reconstruct(model, song, temperature)
     # Reconstruct into midi form
     I, tempo = data.dataset.get_aux_by_names(song_id)
-    programs = instrument_representation_to_programs(I, args.attach_method)
+    programs = instrument_representation_to_programs(I, attach_method)
     
     rolls_to_midi(reconstructed, 
                   programs, 
-                  args.reconstruction_path, 
+                  reconstruction_path, 
                   song_id, 
                   tempo, 
                   24,
@@ -143,37 +124,33 @@ def interpolate():
     raise ValueError("Not implemented")
 
 def main(args):
-    model_params = {
-        'num_subsequences': args.num_subsequences,
-        'max_sequence_length': args.max_sequence_length,
-        'sequence_length': args.sequence_length,
-        'encoder_input_size': args.encoder_input_size,
-        'decoder_input_size': args.decoder_input_size,
-        'encoder_hidden_size': args.encoder_hidden_size,
-        'decoder_hidden_size': args.decoder_hidden_size,
-        'latent_dim': args.latent_dim,
-        'encoder_num_layers': args.encoder_num_layers,
-        'decoder_num_layers': args.decoder_num_layers
-    }
-    model = load_model(args.model_type, model_params)
+    model_params = None
+    sampler = None
+    data_params = None
+    evaluation_params = None
+    with open(args.config, 'r') as config_file:
+        config = yaml.load(config_file)
+        model_params = config['model']
+        sampler_params = {
+            'free_bits': config['sampler']['free_bits'],
+            'output_dir': config['sampler']['output_dir']
+        }
+        data_params = config['data']     
+        evaluation_params = config['evaluation']
 
-    sampler_params = {
-        'free_bits': args.free_bits,
-        'sampling_rate': args.sampling_rate,
-        'batch_size': args.batch_size,
-        'output_dir': args.output_dir
-    }
+    model = load_model(args.model_type, model_params)
     sampler = Sampler(**sampler_params)
     
-    model.load_state_dict(torch.load(args.model_path, map_location='cpu').state_dict(), strict=False)
+    model.load_state_dict(torch.load(evaluation_params['model_path'], 
+                                     map_location='cpu').state_dict(), strict=False)
     print(model)
     model.eval()
             
     mode = args.mode
     if mode == 'eval':
-        evaluate(sampler, model, args)
+        evaluate(sampler, model, evaluation_params)
     elif mode == 'reconstruct':
-        reconstruct(sampler, model, args)
+        reconstruct(sampler, model, evaluation_params)
         
 #     elif mode == 'interpolate':
 #         song_id_A = args.song_id_a
@@ -183,7 +160,6 @@ def main(args):
 #         song_b = data.get_tensor_by_name(song_id_b)
 #         interpolated = sampler.interpolate(model, song_a, song_b)
 #         # TODO save interpolated
-    
 
 if __name__ == '__main__':
     args = parser.parse_args()

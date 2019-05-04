@@ -75,7 +75,6 @@ class Trainer:
             model.train()
             
             for idx, batch in enumerate(train_data):
-                print(batch_loss)
                 batch = batch.transpose(0, 1).squeeze()
                 batch.to(device)
                 elbo, kl = self.train_batch(iter, model, batch)
@@ -113,10 +112,10 @@ class Trainer:
                 print('Validation')
                 print('Epoch: %d, iteration: %d, Average loss: %.4f, KL Divergence: %.4f' % (epoch, iter, loss_avg, div))
                     
-        torch.save(open('outputs/train_loss_musicvae_batch', 'wb+'), torch.tensor(train_loss))
-        torch.save(open('outputs/val_loss_musicvae_batch', 'wb+'), torch.tensor(val_loss))
-        torch.save(open('outputs/train_kl_musicvae_batch', 'wb+'), torch.tensor(train_kl))
-        torch.save(open('outputs/val_kl_musicvae_batch', 'wb+'), torch.tensor(val_kl))
+        torch.save(open('outputs/train_loss_musicvae_batch', 'wb'), torch.tensor(train_loss))
+        torch.save(open('outputs/val_loss_musicvae_batch', 'wb'), torch.tensor(val_loss))
+        torch.save(open('outputs/train_kl_musicvae_batch', 'wb'), torch.tensor(train_kl))
+        torch.save(open('outputs/val_kl_musicvae_batch', 'wb'), torch.tensor(val_kl))
         
     def save_checkpoint(self, model, epoch, iter):
         print('Saving checkpoint')
