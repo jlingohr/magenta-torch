@@ -22,9 +22,12 @@ class MidiDataset(Dataset):
         self.song_tensor = [x.astype(float) for x in input_tensor]
         self.midi_paths = song_paths
         self.transform = transform
-        self.song_names = [os.path.basename(x).split('.')[0] for x in song_paths]
+        self.song_names = None
+        if song_paths is not None:
+            self.song_names = [os.path.basename(x).split('.')[0] for x in song_paths]
         self.index_mapper, self.song_to_bar_idx = self._initialize()
-        self.song_to_idx = {v:k for (k,v) in enumerate(self.song_names)}
+        if self.song_names is not None:
+            self.song_to_idx = {v:k for (k,v) in enumerate(self.song_names)}
         self.instruments=instruments
         self.tempos = tempos
     
@@ -75,7 +78,8 @@ class MidiDataset(Dataset):
         """
         Return aux information such as instruments and tempo
         """
-        idx = self.song_to_idx[song_name]
-        if self.instruments is not None:
-            return self.instruments[idx], self.tempos[idx]
+        if self.song_to_idx is not None:
+            idx = self.song_to_idx[song_name]
+            if self.instruments is not None:
+                return self.instruments[idx], self.tempos[idx]
         return None

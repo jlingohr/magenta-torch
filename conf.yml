@@ -45,5 +45,5 @@ model:
     decoder_num_layers: 2
     
 data:
-    train_data: 'data/train.pickle'
-    val_data: 'data/val.pickle'
+    train_data: 'pickles/X_train.pickle'
+    val_data: None
