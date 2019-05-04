@@ -20,3 +20,30 @@ preprocessor:
     input_length: 16
     output_length: 16
     test_fraction: 0.1
+    
+trainer:
+    learning_rate: 0.001
+    KL_rate: 0.9999
+    free_bits: 256
+    sampling_rate: 2000
+    batch_size: 64
+    print_every: 1000
+    checkpoint_every: 10000
+    checkpoint_dir: 'checkpoint'
+    output_dir: 'outputs'
+
+model:
+    num_subsequences: 16
+    max_sequence_length: 256
+    sequence_length: 16
+    encoder_input_size: 61
+    decoder_input_size: 61
+    encoder_hidden_size: 2048
+    decoder_hidden_size: 1024
+    latent_dim: 512
+    encoder_num_layers: 2
+    decoder_num_layers: 2
+    
+data:
+    train_data: 'data/train.pickle'
+    val_data: 'data/val.pickle'
